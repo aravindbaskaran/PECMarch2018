@@ -1,5 +1,6 @@
 var express = require('express');
 var app = express();
+var mustache = require('mustache');
 var tools = require('./tools');
 
 var mongoose = require('mongoose');
@@ -75,7 +76,50 @@ app.post('/test-post', function(req, res) {
 
 app.get('/kittens/:name', function(req, res) {
   var kittenName = req.params.name;
-  findKitten(kittenName, res);
+  findKitten(kittenName, function(kittens){
+    res.send(JSON.stringify(kittens));
+  });
+});
+app.post('/kittens', function(req, res) {
+  var kittenName = req.body.name;
+  var color = req.body.color;
+  findKitten(kittenName, function(kittens){
+    if(kittens.length == 0) {
+      var newKitten = new Kitten({ name: kittenName, color: color });
+      newKitten.save(function(err) {
+        if (err) return console.error(err);
+        res.send('New kitten adopted');
+      });
+    }
+  });
+});
+
+var tmpl = '<html>\
+    <ul>\
+    {{#kittens}}\
+      <li>\
+        My name is <strong>{{name}}</strong> and\
+        my color is\
+        <span style="color: {{color}}">{{color}}</span></li>\
+    {{/kittens}}\
+    </ul>\
+  </html>';
+
+app.get('/kittens/see/:name', function(req, res) {
+  var kittenName = req.params.name;
+  findKitten(kittenName, function(data){
+    var renderedTmpl = mustache.render(tmpl, {"kittens": data});
+    //console.log(renderedTmpl);
+    res.send(renderedTmpl);
+  });
+});
+app.get('/kittens/all/see', function(req, res) {
+  var kittenName = req.params.name;
+  findKittens(function(data){
+    var renderedTmpl = mustache.render(tmpl, {"kittens": data});
+    //console.log(renderedTmpl);
+    res.send(renderedTmpl);
+  });
 });
 
 
@@ -126,18 +170,19 @@ function createTom(){
 }
 //createTom();
 
-function findKittens() {
+function findKittens(callback) {
   Kitten.find(function (err, kittens) {
     if (err) return console.error(err);
-    console.log(kittens);
+    //console.log(kittens);
+    callback(kittens);
   });
 }
 
-function findKitten(name, res) {
+function findKitten(name, callback) {
   Kitten.find({ name: name }, function (err, kittens) {
     if (err) return console.error(err);
-    console.log(name, kittens);
-    res.send(JSON.stringify(kittens));
+    //console.log(name, kittens);
+    callback(kittens);
   });
 }
 
